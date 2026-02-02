@@ -16,7 +16,6 @@ from src.models.schemas import (
     RiskReport,
 )
 
-
 # Global workflow instance
 workflow: DeFiRiskWorkflow | None = None
 
@@ -167,8 +166,7 @@ async def run_query(query: str) -> dict[str, Any]:
         # Include agent messages
         messages = result.get("messages", [])
         response["agent_messages"] = [
-            {"agent": m.get("agent"), "content": m.get("content")}
-            for m in messages
+            {"agent": m.get("agent"), "content": m.get("content")} for m in messages
         ]
 
         return response

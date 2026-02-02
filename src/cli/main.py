@@ -10,7 +10,6 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from src.graph.workflow import DeFiRiskWorkflow
-from src.models.schemas import ComparisonReport, RiskReport
 
 app = typer.Typer(
     name="defi-risk",
@@ -35,7 +34,9 @@ def run_async(coro):
 
 @app.command()
 def analyze(
-    protocol: Annotated[str, typer.Argument(help="Protocol name to analyze (e.g., aave, compound)")],
+    protocol: Annotated[
+        str, typer.Argument(help="Protocol name to analyze (e.g., aave, compound)")
+    ],
     json_output: Annotated[bool, typer.Option("--json", "-j", help="Output as JSON")] = False,
 ) -> None:
     """

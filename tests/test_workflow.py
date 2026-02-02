@@ -92,12 +92,10 @@ class TestDeFiRiskWorkflow:
 
     def test_format_risk_report(self, workflow: DeFiRiskWorkflow):
         """Test formatting risk report."""
-        from datetime import datetime
         from src.models.schemas import (
             ChainBreakdown,
             ProtocolData,
             RiskAssessment,
-            RiskFactor,
             RiskLevel,
             RiskScore,
         )

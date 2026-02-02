@@ -1,8 +1,6 @@
 """DefiLlama API client for fetching protocol data."""
 
-import asyncio
 from datetime import datetime
-from functools import lru_cache
 from typing import Any
 
 import httpx

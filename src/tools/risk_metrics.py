@@ -123,13 +123,15 @@ class RiskCalculator:
             trend_detail = f"Sharp decline ({trend:+.1f}% 30d)"
 
         # Weighted average
-        final_score = (size_score * 0.4 + vol_score * 0.3 + trend_score * 0.3)
+        final_score = size_score * 0.4 + vol_score * 0.3 + trend_score * 0.3
 
+        tvl_b = tvl / 1e9
+        desc = f"TVL: ${tvl_b:.2f}B | Volatility: {volatility:.1%} | 30d: {trend:+.1f}%"
         return RiskFactor(
             name="TVL Risk",
             score=final_score,
             weight=0.35,
-            description=f"TVL: ${tvl / 1e9:.2f}B | Volatility: {volatility:.1%} | 30d: {trend:+.1f}%",
+            description=desc,
             details=f"{size_detail}. {vol_detail}. {trend_detail}.",
         )
 
@@ -282,7 +284,9 @@ class RiskCalculator:
         warnings: list[str] = []
 
         if score.level in (RiskLevel.HIGH, RiskLevel.CRITICAL):
-            warnings.append(f"Protocol has {score.level.value} overall risk (score: {score.overall:.1f}/10)")
+            warnings.append(
+                f"Protocol has {score.level.value} overall risk (score: {score.overall:.1f}/10)"
+            )
 
         for factor in factors:
             if factor.score >= 7:

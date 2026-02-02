@@ -12,6 +12,7 @@ def client():
     """Create test client with lifespan context."""
     # Initialize the workflow before testing
     import src.api.main as api_module
+
     api_module.workflow = DeFiRiskWorkflow()
 
     with TestClient(app) as client:

@@ -128,7 +128,9 @@ def test_assess_chain_risk_diversified(calculator: RiskCalculator, sample_protoc
     assert factor.score < 6  # Diversified = lower risk
 
 
-def test_assess_chain_risk_concentrated(calculator: RiskCalculator, high_risk_protocol: ProtocolData):
+def test_assess_chain_risk_concentrated(
+    calculator: RiskCalculator, high_risk_protocol: ProtocolData
+):
     """Test chain risk for single-chain protocol."""
     factor = calculator.assess_chain_risk(high_risk_protocol)
 
@@ -182,7 +184,7 @@ def test_assess_protocol_full(calculator: RiskCalculator, sample_protocol: Proto
 
 def test_risk_level_classification(calculator: RiskCalculator):
     """Test risk level thresholds."""
-    from src.models.schemas import RiskFactor, RiskScore
+    from src.models.schemas import RiskFactor
 
     # Low risk
     low_factors = [RiskFactor(name="Test", score=2.0, weight=1.0, description="test")]

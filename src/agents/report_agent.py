@@ -1,7 +1,5 @@
 """Report Agent - Synthesizes findings into professional reports."""
 
-from datetime import datetime
-
 from langchain_core.prompts import ChatPromptTemplate
 
 from src.models.schemas import (
@@ -12,11 +10,11 @@ from src.models.schemas import (
     RiskReport,
 )
 
-
-REPORT_AGENT_PROMPT = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """You are a DeFi report synthesis agent. Your role is to create
+REPORT_AGENT_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a DeFi report synthesis agent. Your role is to create
 professional, enterprise-grade risk reports suitable for institutional review.
 
 Report requirements:
@@ -29,9 +27,10 @@ Report requirements:
 Write in a professional tone suitable for EY-style advisory work.
 Avoid speculation; stick to data-supported conclusions.
 """,
-    ),
-    ("human", "{input}"),
-])
+        ),
+        ("human", "{input}"),
+    ]
+)
 
 
 class ReportAgent:
@@ -45,9 +44,7 @@ class ReportAgent:
             "Public audit records and security disclosures",
         ]
 
-    def generate_executive_summary(
-        self, protocol: ProtocolData, assessment: RiskAssessment
-    ) -> str:
+    def generate_executive_summary(self, protocol: ProtocolData, assessment: RiskAssessment) -> str:
         """Generate executive summary for a protocol."""
         risk_level = assessment.score.level.value.upper()
         score = assessment.score.overall
@@ -97,9 +94,7 @@ class ReportAgent:
 
         return "\n".join(summary_parts)
 
-    def generate_detailed_analysis(
-        self, protocol: ProtocolData, assessment: RiskAssessment
-    ) -> str:
+    def generate_detailed_analysis(self, protocol: ProtocolData, assessment: RiskAssessment) -> str:
         """Generate detailed analysis section."""
         sections = []
 
@@ -178,9 +173,7 @@ class ReportAgent:
 
         return "\n".join(sections)
 
-    def generate_report(
-        self, protocol: ProtocolData, assessment: RiskAssessment
-    ) -> RiskReport:
+    def generate_report(self, protocol: ProtocolData, assessment: RiskAssessment) -> RiskReport:
         """Generate complete risk report."""
         return RiskReport(
             protocol=protocol,
@@ -234,9 +227,10 @@ class ReportAgent:
         lowest_risk = sorted_pairs[0]
         highest_risk = sorted_pairs[-1]
 
+        lowest_score = lowest_risk[1].score.overall
         recommendation = (
             f"Based on quantitative risk analysis, **{lowest_risk[0].name}** presents "
-            f"the lowest overall risk profile with a score of {lowest_risk[1].score.overall:.1f}/10. "
+            f"the lowest overall risk profile with a score of {lowest_score:.1f}/10. "
         )
 
         if highest_risk[1].score.overall - lowest_risk[1].score.overall > 2:
@@ -277,22 +271,26 @@ class ReportAgent:
                 assessment = risk_assessments[slug]
                 report = self.generate_report(protocol, assessment)
 
-                messages.append({
-                    "role": "assistant",
-                    "content": f"Generated risk report for {protocol.name}",
-                    "agent": self.name,
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": f"Generated risk report for {protocol.name}",
+                        "agent": self.name,
+                    }
+                )
             else:
                 protocols = list(protocol_data.values())
                 assessments = [risk_assessments[p.slug] for p in protocols]
                 report = self.generate_comparison_report(protocols, assessments)
 
                 protocol_names = [p.name for p in protocols]
-                messages.append({
-                    "role": "assistant",
-                    "content": f"Generated comparison report for: {', '.join(protocol_names)}",
-                    "agent": self.name,
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": f"Generated comparison report for: {', '.join(protocol_names)}",
+                        "agent": self.name,
+                    }
+                )
 
             return {
                 **state,
@@ -336,14 +334,16 @@ class ReportAgent:
         for source in report.data_sources:
             lines.append(f"- {source}")
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "*This report is generated algorithmically based on publicly available data. "
-            "It should not be considered financial advice. Always conduct independent "
-            "research before making investment decisions.*",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "*This report is generated algorithmically based on publicly available data. "
+                "It should not be considered financial advice. Always conduct independent "
+                "research before making investment decisions.*",
+            ]
+        )
 
         return "\n".join(lines)
 

@@ -5,11 +5,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from src.models.schemas import AgentState, ProtocolData, RiskAssessment
 from src.tools.risk_metrics import RiskCalculator, get_calculator
 
-
-RISK_AGENT_PROMPT = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """You are a DeFi risk analyst agent. Your role is to evaluate protocol risk
+RISK_AGENT_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a DeFi risk analyst agent. Your role is to evaluate protocol risk
 based on quantitative metrics and qualitative factors.
 
 Risk factors to consider:
@@ -25,9 +25,10 @@ When assessing risk:
 - Highlight both strengths and concerns
 - Be objective and balanced in assessments
 """,
-    ),
-    ("human", "{input}"),
-])
+        ),
+        ("human", "{input}"),
+    ]
+)
 
 
 class RiskAgent:
@@ -41,9 +42,7 @@ class RiskAgent:
         """Perform risk assessment on a protocol."""
         return self.calculator.assess_protocol(protocol)
 
-    def assess_protocols(
-        self, protocols: dict[str, ProtocolData]
-    ) -> dict[str, RiskAssessment]:
+    def assess_protocols(self, protocols: dict[str, ProtocolData]) -> dict[str, RiskAssessment]:
         """Assess multiple protocols."""
         return {slug: self.assess_protocol(data) for slug, data in protocols.items()}
 
@@ -77,11 +76,13 @@ class RiskAgent:
                     for warning in assessment.warnings[:2]:
                         message_lines.append(f"  ⚠️ {warning}")
 
-            messages.append({
-                "role": "assistant",
-                "content": "\n".join(message_lines),
-                "agent": self.name,
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": "\n".join(message_lines),
+                    "agent": self.name,
+                }
+            )
 
             return {
                 **state,
@@ -119,17 +120,19 @@ class RiskAgent:
                 lines.append(f"**Details:** {factor.details}")
             lines.append("")
 
-        lines.extend([
-            "## TVL Analysis",
-            assessment.tvl_analysis,
-            "",
-            "## Chain Distribution Analysis",
-            assessment.chain_analysis,
-            "",
-            "## Audit Analysis",
-            assessment.audit_analysis,
-            "",
-        ])
+        lines.extend(
+            [
+                "## TVL Analysis",
+                assessment.tvl_analysis,
+                "",
+                "## Chain Distribution Analysis",
+                assessment.chain_analysis,
+                "",
+                "## Audit Analysis",
+                assessment.audit_analysis,
+                "",
+            ]
+        )
 
         if assessment.warnings:
             lines.append("## ⚠️ Warnings")
@@ -143,13 +146,13 @@ class RiskAgent:
                 lines.append(f"- {rec}")
             lines.append("")
 
-        lines.append(f"_Assessment generated: {assessment.assessed_at.strftime('%Y-%m-%d %H:%M UTC')}_")
+        lines.append(
+            f"_Assessment generated: {assessment.assessed_at.strftime('%Y-%m-%d %H:%M UTC')}_"
+        )
 
         return "\n".join(lines)
 
-    def compare_assessments(
-        self, assessments: dict[str, RiskAssessment]
-    ) -> str:
+    def compare_assessments(self, assessments: dict[str, RiskAssessment]) -> str:
         """Generate comparison summary for multiple assessments."""
         if len(assessments) < 2:
             return "Need at least 2 protocols to compare"
@@ -191,10 +194,14 @@ class RiskAgent:
         lowest_risk = sorted_assessments[0]
         highest_risk = sorted_assessments[-1]
 
-        lines.extend([
-            "## Summary",
-            f"**Lowest Risk:** {lowest_risk.protocol_name} ({lowest_risk.score.overall:.1f}/10)",
-            f"**Highest Risk:** {highest_risk.protocol_name} ({highest_risk.score.overall:.1f}/10)",
-        ])
+        low_score = lowest_risk.score.overall
+        high_score = highest_risk.score.overall
+        lines.extend(
+            [
+                "## Summary",
+                f"**Lowest Risk:** {lowest_risk.protocol_name} ({low_score:.1f}/10)",
+                f"**Highest Risk:** {highest_risk.protocol_name} ({high_score:.1f}/10)",
+            ]
+        )
 
         return "\n".join(lines)

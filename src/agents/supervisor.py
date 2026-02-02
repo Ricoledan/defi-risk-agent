@@ -6,11 +6,11 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from src.models.schemas import AgentState
 
-
-SUPERVISOR_PROMPT = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """You are a DeFi risk analysis supervisor agent. Your role is to:
+SUPERVISOR_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a DeFi risk analysis supervisor agent. Your role is to:
 1. Understand user queries about DeFi protocol risk
 2. Route requests to the appropriate specialist agents
 3. Manage multi-step analysis workflows
@@ -27,9 +27,10 @@ Workflow order for analysis requests:
 For simple data queries, you may skip directly to data_agent.
 For risk questions, route through the full workflow.
 """,
-    ),
-    ("human", "{input}"),
-])
+        ),
+        ("human", "{input}"),
+    ]
+)
 
 
 AgentName = Literal["data_agent", "risk_agent", "report_agent", "supervisor"]
@@ -58,11 +59,32 @@ class SupervisorAgent:
         # Extract protocol names (simple heuristic)
         # Common DeFi protocols for matching
         known_protocols = [
-            "aave", "compound", "makerdao", "maker", "uniswap", "curve",
-            "lido", "rocket pool", "rocketpool", "convex", "yearn",
-            "balancer", "sushiswap", "pancakeswap", "gmx", "dydx",
-            "morpho", "euler", "venus", "benqi", "traderjoe",
-            "instadapp", "radiant", "spark", "frax", "eigenlayer",
+            "aave",
+            "compound",
+            "makerdao",
+            "maker",
+            "uniswap",
+            "curve",
+            "lido",
+            "rocket pool",
+            "rocketpool",
+            "convex",
+            "yearn",
+            "balancer",
+            "sushiswap",
+            "pancakeswap",
+            "gmx",
+            "dydx",
+            "morpho",
+            "euler",
+            "venus",
+            "benqi",
+            "traderjoe",
+            "instadapp",
+            "radiant",
+            "spark",
+            "frax",
+            "eigenlayer",
         ]
 
         protocols = []
@@ -80,8 +102,21 @@ class SupervisorAgent:
             for i, word in enumerate(words):
                 clean_word = word.strip(",.!?").lower()
                 if clean_word and clean_word not in [
-                    "analyze", "compare", "risk", "report", "the", "and", "vs",
-                    "versus", "with", "for", "of", "to", "a", "an", "protocol",
+                    "analyze",
+                    "compare",
+                    "risk",
+                    "report",
+                    "the",
+                    "and",
+                    "vs",
+                    "versus",
+                    "with",
+                    "for",
+                    "of",
+                    "to",
+                    "a",
+                    "an",
+                    "protocol",
                 ]:
                     if len(clean_word) >= 2 and clean_word.isalpha():
                         protocols.append(clean_word)
@@ -95,9 +130,7 @@ class SupervisorAgent:
         # All intents start with data fetching
         return "data_agent"
 
-    def determine_next_agent(
-        self, current_agent: AgentName, state: AgentState
-    ) -> AgentName | None:
+    def determine_next_agent(self, current_agent: AgentName, state: AgentState) -> AgentName | None:
         """Determine next agent based on current state."""
         # Check for errors
         if state.get("error"):
@@ -129,10 +162,13 @@ class SupervisorAgent:
         intent, protocols = self.parse_query(query)
 
         if not protocols:
+            error_msg = (
+                "Could not identify any protocol names in the query. "
+                "Please specify a protocol name (e.g., 'analyze aave')"
+            )
             return {
                 **state,
-                "error": "Could not identify any protocol names in the query. "
-                "Please specify a protocol name (e.g., 'analyze aave' or 'compare uniswap compound')",
+                "error": error_msg,
                 "current_agent": self.name,
                 "next_agent": None,
             }
@@ -141,11 +177,13 @@ class SupervisorAgent:
         first_agent = self.determine_first_agent(intent)
 
         messages = state.get("messages", [])
-        messages.append({
-            "role": "assistant",
-            "content": f"Starting {intent} workflow for: {', '.join(protocols)}",
-            "agent": self.name,
-        })
+        messages.append(
+            {
+                "role": "assistant",
+                "content": f"Starting {intent} workflow for: {', '.join(protocols)}",
+                "agent": self.name,
+            }
+        )
 
         return {
             **state,

@@ -1,6 +1,7 @@
 """LangGraph workflow definition for DeFi risk analysis."""
 
-from typing import Annotated, Any, Sequence
+from collections.abc import Sequence
+from typing import Annotated, Any
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import END, StateGraph

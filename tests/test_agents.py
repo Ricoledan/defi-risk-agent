@@ -1,7 +1,5 @@
 """Tests for agent implementations."""
 
-from datetime import datetime
-
 import pytest
 
 from src.agents.data_agent import DataAgent
@@ -53,8 +51,12 @@ def sample_assessment(sample_protocol: ProtocolData):
             level=RiskLevel.MEDIUM,
             factors=[
                 RiskFactor(name="TVL Risk", score=2.5, weight=0.35, description="Large TVL"),
-                RiskFactor(name="Chain Concentration", score=4.0, weight=0.25, description="Moderate"),
-                RiskFactor(name="Audit Status", score=2.0, weight=0.25, description="Multiple audits"),
+                RiskFactor(
+                    name="Chain Concentration", score=4.0, weight=0.25, description="Moderate"
+                ),
+                RiskFactor(
+                    name="Audit Status", score=2.0, weight=0.25, description="Multiple audits"
+                ),
                 RiskFactor(name="Oracle Risk", score=2.0, weight=0.15, description="Chainlink"),
             ],
         ),
@@ -204,10 +206,12 @@ class TestRiskAgent:
             audit_analysis="Test",
         )
 
-        comparison = agent.compare_assessments({
-            "aave": sample_assessment,
-            "compound": assessment2,
-        })
+        comparison = agent.compare_assessments(
+            {
+                "aave": sample_assessment,
+                "compound": assessment2,
+            }
+        )
 
         assert "Risk Comparison" in comparison
         assert "Aave" in comparison
@@ -243,9 +247,7 @@ class TestReportAgent:
         assert report.detailed_analysis
         assert len(report.data_sources) > 0
 
-    def test_format_report(
-        self, sample_protocol: ProtocolData, sample_assessment: RiskAssessment
-    ):
+    def test_format_report(self, sample_protocol: ProtocolData, sample_assessment: RiskAssessment):
         """Test formatting report as markdown."""
         agent = ReportAgent()
         report = agent.generate_report(sample_protocol, sample_assessment)

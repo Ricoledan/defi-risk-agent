@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
@@ -161,7 +161,9 @@ class AnalyzeRequest(BaseModel):
 class CompareRequest(BaseModel):
     """Request to compare protocols."""
 
-    protocols: list[str] = Field(min_length=2, max_length=5, description="Protocol names to compare")
+    protocols: list[str] = Field(
+        min_length=2, max_length=5, description="Protocol names to compare"
+    )
 
 
 class HealthResponse(BaseModel):

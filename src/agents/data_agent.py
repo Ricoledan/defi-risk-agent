@@ -1,16 +1,15 @@
 """Data Agent - Fetches protocol data from DefiLlama."""
 
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 
 from src.models.schemas import AgentState, ProtocolData
 from src.tools.defillama import DefiLlamaClient, DefiLlamaError, get_client
 
-
-DATA_AGENT_PROMPT = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """You are a DeFi data specialist agent. Your role is to fetch and validate
+DATA_AGENT_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a DeFi data specialist agent. Your role is to fetch and validate
 protocol data from DefiLlama. You have access to comprehensive DeFi protocol information
 including TVL, chain breakdowns, and audit status.
 
@@ -20,9 +19,10 @@ When reporting data:
 - Flag any missing or incomplete data
 - Format numbers in human-readable form (e.g., $1.5B instead of 1500000000)
 """,
-    ),
-    ("human", "{input}"),
-])
+        ),
+        ("human", "{input}"),
+    ]
+)
 
 
 class DataAgent:
@@ -74,13 +74,17 @@ class DataAgent:
             message_content = f"Successfully fetched data for: {', '.join(fetched_names)}"
 
             for slug, data in protocol_data.items():
-                message_content += f"\n- {data.name}: TVL ${data.tvl / 1e9:.2f}B across {len(data.chains)} chains"
+                message_content += (
+                    f"\n- {data.name}: TVL ${data.tvl / 1e9:.2f}B across {len(data.chains)} chains"
+                )
 
-            messages.append({
-                "role": "assistant",
-                "content": message_content,
-                "agent": self.name,
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": message_content,
+                    "agent": self.name,
+                }
+            )
 
             return {
                 **state,
@@ -117,13 +121,17 @@ class DataAgent:
         for chain in data.chain_tvls[:5]:
             lines.append(f"- {chain.chain}: ${chain.tvl / 1e9:.2f}B ({chain.percentage:.1f}%)")
 
-        lines.extend([
-            "",
-            "## Security",
-            f"**Audits:** {len(data.audit_links)} on record" if data.audit_links else "**Audits:** None found",
-            f"**Oracles:** {', '.join(data.oracles) if data.oracles else 'None specified'}",
-            "",
-            f"_Data source: DefiLlama | Fetched: {data.fetched_at.strftime('%Y-%m-%d %H:%M UTC')}_",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Security",
+                f"**Audits:** {len(data.audit_links)} on record"
+                if data.audit_links
+                else "**Audits:** None found",
+                f"**Oracles:** {', '.join(data.oracles) if data.oracles else 'None specified'}",
+                "",
+                f"_Data source: DefiLlama | Fetched: {data.fetched_at:%Y-%m-%d %H:%M UTC}_",
+            ]
+        )
 
         return "\n".join(lines)
