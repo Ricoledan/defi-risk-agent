@@ -28,47 +28,59 @@ The multi-agent architecture allows each component to specialize in its domain w
 
 ### Architecture
 
+```mermaid
+flowchart TD
+    A[User Query] --> B[Supervisor Agent]
+    B --> |Parse & Route| C[Data Agent]
+    C --> |Fetch from DefiLlama| D[Risk Agent]
+    D --> |Calculate Scores| E[Report Agent]
+    E --> F[Risk Report]
+
+    B -.-> |Error| G[End with Error]
+    C -.-> |Protocol Not Found| G
+
+    subgraph "Data Agent"
+        C1[TVL & Trends]
+        C2[Chain Breakdown]
+        C3[Audit Links]
+        C4[Oracle Info]
+    end
+
+    subgraph "Risk Agent"
+        D1[TVL Risk: 35%]
+        D2[Chain Risk: 25%]
+        D3[Audit Risk: 25%]
+        D4[Oracle Risk: 15%]
+    end
 ```
-User Query
-    │
-    ▼
-┌─────────────────┐
-│   Supervisor    │  Parses query, extracts protocol names,
-│   Agent         │  determines workflow, routes to specialists
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Data Agent    │  Fetches from DefiLlama API:
-│                 │  - Current TVL and trends
-│                 │  - Chain breakdown
-│                 │  - Audit links, oracles
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Risk Agent    │  Calculates risk scores:
-│                 │  - TVL size/volatility/trend
-│                 │  - Chain concentration (HHI)
-│                 │  - Audit coverage
-│                 │  - Oracle dependencies
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Report Agent   │  Generates output:
-│                 │  - Executive summary
-│                 │  - Detailed analysis
-│                 │  - Data source citations
-└────────┬────────┘
-         │
-         ▼
-    Risk Report
-```
+
+### Agent Responsibilities
+
+| Agent | Role | Input | Output |
+|-------|------|-------|--------|
+| **Supervisor** | Query parsing, workflow routing | User query string | Protocol names, workflow intent |
+| **Data Agent** | External data fetching | Protocol names | `ProtocolData` objects |
+| **Risk Agent** | Risk score calculation | Protocol data | `RiskAssessment` objects |
+| **Report Agent** | Report generation | Data + Assessments | Formatted `RiskReport` |
 
 ### LangGraph Workflow
 
-The agents are orchestrated using [LangGraph](https://github.com/langchain-ai/langgraph), a framework for building stateful, multi-step AI applications. The workflow is defined as a directed graph where:
+The agents are orchestrated using [LangGraph](https://github.com/langchain-ai/langgraph), a framework for building stateful, multi-step AI applications. The workflow is defined as a directed graph:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Supervisor
+    Supervisor --> DataAgent: protocols found
+    Supervisor --> [*]: error (no protocols)
+
+    DataAgent --> RiskAgent: data fetched
+    DataAgent --> [*]: error (API failure)
+
+    RiskAgent --> ReportAgent: scores calculated
+    ReportAgent --> [*]: report generated
+```
+
+**Key concepts:**
 
 - **Nodes** are agent functions that process and transform state
 - **Edges** define transitions between agents (including conditional routing)
@@ -95,11 +107,41 @@ This design enables:
 - Debuggable state at each step
 - Potential for human-in-the-loop interventions
 
+### Data Flow
+
+```mermaid
+flowchart LR
+    subgraph External
+        API[(DefiLlama API)]
+    end
+
+    subgraph "State Object"
+        S1[query: str]
+        S2[protocol_names: list]
+        S3[protocol_data: dict]
+        S4[risk_assessments: dict]
+        S5[report: RiskReport]
+    end
+
+    API --> |HTTP GET| S3
+    S1 --> |Supervisor parses| S2
+    S3 --> |Risk Agent analyzes| S4
+    S4 --> |Report Agent formats| S5
+```
+
 ## Risk Assessment Methodology
 
 ### Scoring Model
 
 Risk is scored on a 0-10 scale where **lower scores indicate lower risk**. The overall score is a weighted average of four factors:
+
+```mermaid
+pie title Risk Factor Weights
+    "TVL Risk" : 35
+    "Chain Concentration" : 25
+    "Audit Status" : 25
+    "Oracle Risk" : 15
+```
 
 | Factor | Weight | What It Measures |
 |--------|--------|------------------|
@@ -152,6 +194,24 @@ Evaluates dependency on external price feeds.
 | No oracle dependency detected | 4.0 |
 
 ### Risk Levels
+
+```mermaid
+%%{init: {'themeVariables': { 'fontSize': '14px'}}}%%
+graph LR
+    subgraph Risk Scale
+        L[0-3: LOW]
+        M[3-5: MEDIUM]
+        H[5-7: HIGH]
+        C[7-10: CRITICAL]
+    end
+
+    L --> M --> H --> C
+
+    style L fill:#22c55e,color:#fff
+    style M fill:#eab308,color:#000
+    style H fill:#f97316,color:#fff
+    style C fill:#ef4444,color:#fff
+```
 
 | Level | Score Range | Interpretation |
 |-------|-------------|----------------|
@@ -295,6 +355,46 @@ _Data source: DefiLlama API (https://defillama.com)_
 ```
 
 ## Project Structure
+
+```mermaid
+graph TD
+    subgraph src/
+        subgraph agents/
+            A1[supervisor.py]
+            A2[data_agent.py]
+            A3[risk_agent.py]
+            A4[report_agent.py]
+        end
+
+        subgraph graph/
+            G1[workflow.py]
+        end
+
+        subgraph tools/
+            T1[defillama.py]
+            T2[risk_metrics.py]
+        end
+
+        subgraph models/
+            M1[schemas.py]
+        end
+
+        subgraph api/
+            API1[main.py]
+        end
+
+        subgraph cli/
+            CLI1[main.py]
+        end
+    end
+
+    G1 --> A1 & A2 & A3 & A4
+    A2 --> T1
+    A3 --> T2
+    A1 & A2 & A3 & A4 --> M1
+    API1 --> G1
+    CLI1 --> G1
+```
 
 ```
 defi-risk-agent/
