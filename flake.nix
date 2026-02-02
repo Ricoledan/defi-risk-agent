@@ -14,6 +14,9 @@
         # Use Python 3.11 for best compatibility with LangGraph
         python = pkgs.python311;
 
+        # Check if Ollama is available for this system
+        hasOllama = pkgs ? ollama;
+
         # Development shell with all tools
         devShell = pkgs.mkShell {
           name = "defi-risk-agent";
@@ -22,6 +25,8 @@
             python
             pkgs.git
             pkgs.curl
+          ] ++ pkgs.lib.optionals hasOllama [
+            pkgs.ollama
           ];
 
           shellHook = ''
@@ -30,6 +35,14 @@
             echo "╚══════════════════════════════════════════════════════════════╝"
             echo ""
             echo "Python: $(python --version)"
+            ${if hasOllama then ''
+            if command -v ollama &> /dev/null; then
+              echo "Ollama: $(ollama --version 2>/dev/null || echo 'installed')"
+            fi
+            '' else ''
+            echo "Ollama: not available in nixpkgs for this system"
+            echo "        Install via: brew install ollama (macOS) or https://ollama.ai"
+            ''}
             echo ""
 
             # Create virtual environment if it doesn't exist
@@ -49,13 +62,20 @@
 
             echo ""
             echo "Available commands:"
-            echo "  defi-risk analyze <protocol>  - Analyze a protocol"
-            echo "  defi-risk compare <p1> <p2>   - Compare protocols"
-            echo "  defi-risk protocols           - List top protocols"
-            echo "  pytest                        - Run tests"
+            echo "  defi-risk analyze <protocol>      - Analyze a protocol"
+            echo "  defi-risk analyze <proto> --llm   - With AI insights"
+            echo "  defi-risk compare <p1> <p2>       - Compare protocols"
+            echo "  defi-risk protocols               - List top protocols"
+            echo "  defi-risk setup-llm               - Check Ollama status"
+            echo "  pytest                            - Run tests"
             echo ""
             echo "API server:"
             echo "  uvicorn src.api.main:app --reload"
+            echo ""
+            echo "LLM setup (optional):"
+            echo "  ollama serve                      - Start Ollama server"
+            echo "  ollama pull llama3.2              - Download model"
+            echo "  ./scripts/setup-ollama.sh         - Automated setup"
             echo ""
           '';
         };

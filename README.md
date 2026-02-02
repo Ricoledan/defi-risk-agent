@@ -252,6 +252,36 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
+### LLM Setup (Optional)
+
+For AI-powered insights, install and run Ollama:
+
+```bash
+# macOS
+brew install ollama
+
+# Or use the setup script
+./scripts/setup-ollama.sh
+
+# Start Ollama server
+ollama serve
+
+# Pull the default model (in another terminal)
+ollama pull llama3.2
+```
+
+You can also use OpenAI or Anthropic by setting environment variables:
+
+```bash
+# For OpenAI
+export LLM_PROVIDER=openai
+export OPENAI_API_KEY=your-key
+
+# For Anthropic
+export LLM_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=your-key
+```
+
 ## Usage
 
 ### CLI
@@ -260,17 +290,26 @@ pip install -e ".[dev]"
 # Analyze a single protocol
 defi-risk analyze aave
 
+# With AI-powered insights (requires Ollama)
+defi-risk analyze aave --llm
+
 # Output as JSON
 defi-risk analyze aave --json
 
 # Compare multiple protocols
 defi-risk compare aave compound
 
+# Compare with AI insights
+defi-risk compare aave compound --llm
+
 # List top protocols by TVL
 defi-risk protocols
 
 # Natural language query
 defi-risk query "analyze uniswap risk"
+
+# Check LLM setup status
+defi-risk setup-llm
 ```
 
 ### REST API
@@ -426,6 +465,7 @@ defi-risk-agent/
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Agent Orchestration | LangGraph | Stateful multi-agent workflow |
+| LLM (Optional) | Ollama / OpenAI / Anthropic | AI-powered insights |
 | Data Validation | Pydantic | Type-safe data models |
 | HTTP Client | httpx | Async API requests |
 | REST API | FastAPI | Web API endpoints |
@@ -466,7 +506,7 @@ This tool has significant limitations that users should understand:
 ### Technical Limitations
 
 - **No Real-time Data** - Results are cached for 5 minutes. Not suitable for time-sensitive decisions.
-- **No LLM Integration** - Despite using LangGraph, the current implementation doesn't use LLMs for analysis. It's purely algorithmic.
+- **Optional LLM Integration** - LLM-powered insights require a locally running Ollama server. The base analysis is purely algorithmic.
 - **Limited Protocol Recognition** - The supervisor uses keyword matching to find protocols. Unusual names may not be recognized.
 
 ### Not Financial Advice
@@ -502,7 +542,7 @@ ruff format src/ tests/
 Potential enhancements (not currently implemented):
 
 - [ ] Integrate historical exploit/incident data
-- [ ] Add LLM-powered analysis for qualitative factors
+- [x] ~~Add LLM-powered analysis for qualitative factors~~ (Added via Ollama integration)
 - [ ] Support more data sources (DeFi Safety, Exponential, etc.)
 - [ ] Track risk score changes over time
 - [ ] Add governance and tokenomics analysis

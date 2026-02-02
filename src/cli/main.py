@@ -32,18 +32,40 @@ def run_async(coro):
         return loop.run_until_complete(coro)
 
 
+def get_llm_analysis(protocol_data, assessment, compare_mode=False, all_data=None):
+    """Get LLM-powered analysis if available."""
+    try:
+        from src.agents.llm_analyst import LLMAnalyst
+
+        analyst = LLMAnalyst()
+
+        if compare_mode and all_data:
+            protocols, assessments = all_data
+            return analyst.compare(protocols, assessments)
+        else:
+            return analyst.analyze(protocol_data, assessment)
+    except RuntimeError as e:
+        return f"[LLM analysis unavailable: {e}]"
+    except Exception as e:
+        return f"[LLM analysis failed: {e}]"
+
+
 @app.command()
 def analyze(
     protocol: Annotated[
         str, typer.Argument(help="Protocol name to analyze (e.g., aave, compound)")
     ],
     json_output: Annotated[bool, typer.Option("--json", "-j", help="Output as JSON")] = False,
+    llm: Annotated[
+        bool, typer.Option("--llm", "-l", help="Include LLM-powered insights (requires Ollama)")
+    ] = False,
 ) -> None:
     """
     Analyze risk for a single DeFi protocol.
 
     Example:
         defi-risk analyze aave
+        defi-risk analyze aave --llm      # With AI insights
         defi-risk analyze compound --json
     """
     workflow = DeFiRiskWorkflow()
@@ -70,9 +92,22 @@ def analyze(
     if json_output:
         console.print(report.model_dump_json(indent=2))
     else:
-        # Render as markdown
         formatted = workflow.format_report(report)
         console.print(Markdown(formatted))
+
+        if llm:
+            console.print()
+            console.print(Panel("AI Analysis", style="cyan"))
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Generating AI insights...", total=None)
+                llm_output = get_llm_analysis(report.protocol, report.assessment)
+                progress.update(task, completed=True)
+
+            console.print(Markdown(llm_output))
 
 
 @app.command()
@@ -82,12 +117,16 @@ def compare(
         typer.Argument(help="Protocol names to compare (2-5 protocols)"),
     ],
     json_output: Annotated[bool, typer.Option("--json", "-j", help="Output as JSON")] = False,
+    llm: Annotated[
+        bool, typer.Option("--llm", "-l", help="Include LLM-powered insights (requires Ollama)")
+    ] = False,
 ) -> None:
     """
     Compare risk between multiple DeFi protocols.
 
     Example:
         defi-risk compare aave compound
+        defi-risk compare aave compound --llm  # With AI insights
         defi-risk compare uniswap sushiswap curve --json
     """
     if len(protocols) < 2:
@@ -125,6 +164,25 @@ def compare(
     else:
         formatted = workflow.format_report(report)
         console.print(Markdown(formatted))
+
+        if llm:
+            console.print()
+            console.print(Panel("AI Comparison Analysis", style="cyan"))
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Generating AI insights...", total=None)
+                llm_output = get_llm_analysis(
+                    None,
+                    None,
+                    compare_mode=True,
+                    all_data=(report.protocols, report.assessments),
+                )
+                progress.update(task, completed=True)
+
+            console.print(Markdown(llm_output))
 
 
 @app.command()
@@ -164,7 +222,6 @@ def query(
         formatted = workflow.format_report(report)
         console.print(Markdown(formatted))
     else:
-        # Show messages from agents
         console.print(Panel("Agent Responses", style="blue"))
         for msg in result.get("messages", []):
             agent = msg.get("agent", "unknown")
@@ -199,7 +256,6 @@ def protocols() -> None:
 
         progress.update(task, completed=True)
 
-    # Sort by TVL and show top 50
     sorted_protocols = sorted(
         all_protocols,
         key=lambda p: p.get("tvl", 0) or 0,
@@ -220,11 +276,45 @@ def protocols() -> None:
 
 
 @app.command()
+def setup_llm() -> None:
+    """
+    Check Ollama status and setup for LLM features.
+
+    Example:
+        defi-risk setup-llm
+    """
+    from src.llm.provider import check_ollama_available, get_available_ollama_models
+
+    console.print(Panel("Ollama Setup Check", style="blue"))
+    console.print()
+
+    if check_ollama_available():
+        console.print("[green]✓[/green] Ollama server is running")
+
+        models = get_available_ollama_models()
+        if models:
+            console.print(f"[green]✓[/green] Models installed: {', '.join(models)}")
+        else:
+            console.print("[yellow]![/yellow] No models installed")
+            console.print("  Run: ollama pull llama3.2")
+    else:
+        console.print("[red]✗[/red] Ollama server not running")
+        console.print()
+        console.print("To setup Ollama:")
+        console.print("  1. Install: brew install ollama")
+        console.print("  2. Start:   ollama serve")
+        console.print("  3. Pull:    ollama pull llama3.2")
+        console.print()
+        console.print("Or run: ./scripts/setup-ollama.sh")
+
+
+@app.command()
 def version() -> None:
     """Show version information."""
     console.print(Panel("DeFi Risk Analysis Agent v0.1.0", style="green"))
     console.print("Built with LangGraph, FastAPI, and Typer")
     console.print("Data source: DefiLlama API")
+    console.print("LLM support: Ollama (optional)")
 
 
 if __name__ == "__main__":
