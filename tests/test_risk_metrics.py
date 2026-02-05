@@ -4,7 +4,14 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from src.models.schemas import ChainBreakdown, ProtocolData, RiskLevel, TVLDataPoint
+from src.models.schemas import (
+    ChainBreakdown,
+    ExploitIncident,
+    IncidentSeverity,
+    ProtocolData,
+    RiskLevel,
+    TVLDataPoint,
+)
 from src.tools.risk_metrics import RiskCalculator
 
 
@@ -109,7 +116,7 @@ def test_assess_tvl_risk_low(calculator: RiskCalculator, sample_protocol: Protoc
     factor = calculator.assess_tvl_risk(sample_protocol)
 
     assert factor.name == "TVL Risk"
-    assert factor.weight == 0.35
+    assert factor.weight == 0.30
     assert factor.score < 5  # Should be low risk
 
 
@@ -159,6 +166,7 @@ def test_calculate_overall_risk(calculator: RiskCalculator, sample_protocol: Pro
         calculator.assess_chain_risk(sample_protocol),
         calculator.assess_audit_risk(sample_protocol),
         calculator.assess_oracle_risk(sample_protocol),
+        calculator.assess_incident_risk(sample_protocol),
     ]
 
     score = calculator.calculate_overall_risk(factors)
@@ -166,7 +174,7 @@ def test_calculate_overall_risk(calculator: RiskCalculator, sample_protocol: Pro
     assert score.overall >= 0
     assert score.overall <= 10
     assert score.level in RiskLevel
-    assert len(score.factors) == 4
+    assert len(score.factors) == 5
 
 
 def test_assess_protocol_full(calculator: RiskCalculator, sample_protocol: ProtocolData):
@@ -176,10 +184,11 @@ def test_assess_protocol_full(calculator: RiskCalculator, sample_protocol: Proto
     assert assessment.protocol_name == "Test Protocol"
     assert assessment.protocol_slug == "test-protocol"
     assert assessment.score.overall >= 0
-    assert len(assessment.score.factors) == 4
+    assert len(assessment.score.factors) == 5
     assert assessment.tvl_analysis
     assert assessment.chain_analysis
     assert assessment.audit_analysis
+    assert assessment.incident_analysis
 
 
 def test_risk_level_classification(calculator: RiskCalculator):
@@ -205,3 +214,77 @@ def test_risk_level_classification(calculator: RiskCalculator):
     crit_factors = [RiskFactor(name="Test", score=8.5, weight=1.0, description="test")]
     crit_score = calculator.calculate_overall_risk(crit_factors)
     assert crit_score.level == RiskLevel.CRITICAL
+
+
+def test_assess_incident_risk_no_incidents(calculator: RiskCalculator, sample_protocol: ProtocolData):
+    """Test incident risk assessment for protocol with no incidents."""
+    factor = calculator.assess_incident_risk(sample_protocol)
+
+    assert factor.name == "Incident History"
+    assert factor.weight == 0.15
+    assert factor.score == 2.0  # Clean record = low risk
+    assert "No documented" in factor.description
+
+
+def test_assess_incident_risk_recent_critical(calculator: RiskCalculator, sample_protocol: ProtocolData):
+    """Test incident risk for protocol with recent critical incident."""
+    # Add a recent critical incident
+    now = datetime.utcnow()
+    sample_protocol.incidents = [
+        ExploitIncident(
+            protocol_name="Test Protocol",
+            date=now - timedelta(days=15),
+            amount_lost_usd=100_000_000,
+            severity=IncidentSeverity.CRITICAL,
+            title="Critical Exploit - $100M",
+            fixed=False,
+        )
+    ]
+
+    factor = calculator.assess_incident_risk(sample_protocol)
+
+    assert factor.score > 7  # Recent critical = high risk
+    assert "critical" in factor.description.lower()
+
+
+def test_assess_incident_risk_old_resolved(calculator: RiskCalculator, sample_protocol: ProtocolData):
+    """Test incident risk for protocol with old resolved incident."""
+    # Add an old resolved incident
+    now = datetime.utcnow()
+    sample_protocol.incidents = [
+        ExploitIncident(
+            protocol_name="Test Protocol",
+            date=now - timedelta(days=900),
+            amount_lost_usd=5_000_000,
+            severity=IncidentSeverity.MEDIUM,
+            title="Old Incident - $5M",
+            fixed=True,
+        )
+    ]
+
+    factor = calculator.assess_incident_risk(sample_protocol)
+
+    assert factor.score < 6  # Old resolved = lower risk
+    assert len(sample_protocol.incidents) == 1
+
+
+def test_assess_protocol_with_incidents(calculator: RiskCalculator, sample_protocol: ProtocolData):
+    """Test full protocol assessment with incidents."""
+    now = datetime.utcnow()
+    sample_protocol.incidents = [
+        ExploitIncident(
+            protocol_name="Test Protocol",
+            date=now - timedelta(days=60),
+            amount_lost_usd=20_000_000,
+            severity=IncidentSeverity.HIGH,
+            title="Exploit - $20M",
+            fixed=True,
+        )
+    ]
+
+    assessment = calculator.assess_protocol(sample_protocol)
+
+    assert len(assessment.score.factors) == 5
+    incident_factor = next(f for f in assessment.score.factors if f.name == "Incident History")
+    assert incident_factor.score > 2.0  # Should have some risk
+    assert "incident" in assessment.incident_analysis.lower()

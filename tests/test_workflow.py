@@ -115,6 +115,7 @@ class TestDeFiRiskWorkflow:
             tvl_analysis="Test",
             chain_analysis="Test",
             audit_analysis="Test",
+            incident_analysis="Test",
         )
 
         report = RiskReport(

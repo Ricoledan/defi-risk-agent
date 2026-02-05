@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from src.models.schemas import (
     ChainBreakdown,
+    IncidentSeverity,
     ProtocolData,
     RiskAssessment,
     RiskFactor,
@@ -130,7 +131,7 @@ class RiskCalculator:
         return RiskFactor(
             name="TVL Risk",
             score=final_score,
-            weight=0.35,
+            weight=0.30,
             description=desc,
             details=f"{size_detail}. {vol_detail}. {trend_detail}.",
         )
@@ -202,7 +203,7 @@ class RiskCalculator:
         return RiskFactor(
             name="Audit Status",
             score=score,
-            weight=0.25,
+            weight=0.20,
             description=description,
             details=details,
         )
@@ -219,7 +220,7 @@ class RiskCalculator:
             return RiskFactor(
                 name="Oracle Risk",
                 score=4.0,
-                weight=0.15,
+                weight=0.10,
                 description="No oracle dependency detected",
                 details="Protocol may not require price feeds or uses internal pricing",
             )
@@ -240,6 +241,94 @@ class RiskCalculator:
         return RiskFactor(
             name="Oracle Risk",
             score=score,
+            weight=0.10,
+            description=description,
+            details=details,
+        )
+
+    def assess_incident_risk(self, protocol: ProtocolData) -> RiskFactor:
+        """Assess risk based on historical incidents."""
+        incidents = protocol.incidents
+
+        if not incidents:
+            return RiskFactor(
+                name="Incident History",
+                score=2.0,
+                weight=0.15,
+                description="No documented security incidents",
+                details="Clean security track record with no major exploits on record",
+            )
+
+        # Calculate recency score (more recent = worse)
+        now = datetime.utcnow()
+        recency_score = 0.0
+        for incident in incidents:
+            days_ago = (now - incident.date).days
+            if days_ago <= 30:
+                recency_score += 10
+            elif days_ago <= 180:
+                recency_score += 8
+            elif days_ago <= 365:
+                recency_score += 5
+            elif days_ago <= 730:
+                recency_score += 3
+            else:
+                recency_score += 1
+
+        # Normalize recency score (cap at 10)
+        recency_score = min(10.0, recency_score / len(incidents))
+
+        # Calculate severity score
+        severity_score = 0.0
+        severity_weights = {
+            IncidentSeverity.CRITICAL: 10,
+            IncidentSeverity.HIGH: 7,
+            IncidentSeverity.MEDIUM: 4,
+            IncidentSeverity.LOW: 2,
+        }
+        for incident in incidents:
+            severity_score += severity_weights.get(incident.severity, 5)
+
+        # Normalize severity score
+        severity_score = min(10.0, severity_score / len(incidents))
+
+        # Calculate resolution score (unfixed = higher risk)
+        unfixed_count = sum(1 for i in incidents if not i.fixed)
+        resolution_score = min(10.0, (unfixed_count / len(incidents)) * 10)
+
+        # Final weighted score: 50% recency + 40% severity + 10% resolution
+        final_score = (recency_score * 0.5) + (severity_score * 0.4) + (resolution_score * 0.1)
+
+        # Generate description
+        critical_count = sum(1 for i in incidents if i.severity == IncidentSeverity.CRITICAL)
+        high_count = sum(1 for i in incidents if i.severity == IncidentSeverity.HIGH)
+        total_loss = sum(i.amount_lost_usd for i in incidents)
+
+        if critical_count > 0:
+            description = f"{len(incidents)} incident(s), {critical_count} critical (${total_loss / 1e6:.1f}M lost)"
+        elif high_count > 0:
+            description = f"{len(incidents)} incident(s), {high_count} high severity (${total_loss / 1e6:.1f}M lost)"
+        else:
+            description = f"{len(incidents)} incident(s) (${total_loss / 1e6:.1f}M lost)"
+
+        # Generate details
+        most_recent = incidents[0]
+        days_since = (now - most_recent.date).days
+        details = f"Most recent incident: {most_recent.title} ({days_since} days ago). "
+
+        if unfixed_count > 0:
+            details += f"{unfixed_count} incident(s) not confirmed fixed. "
+
+        if critical_count > 0:
+            details += f"{critical_count} critical-severity exploit(s) indicate significant security risks."
+        elif high_count > 0:
+            details += f"{high_count} high-severity incident(s) warrant careful review."
+        else:
+            details += "Lower severity incidents - review for patterns."
+
+        return RiskFactor(
+            name="Incident History",
+            score=final_score,
             weight=0.15,
             description=description,
             details=details,
@@ -266,6 +355,7 @@ class RiskCalculator:
             self.assess_chain_risk(protocol),
             self.assess_audit_risk(protocol),
             self.assess_oracle_risk(protocol),
+            self.assess_incident_risk(protocol),
         ]
 
         score = self.calculate_overall_risk(factors)
@@ -274,10 +364,12 @@ class RiskCalculator:
         tvl_factor = next(f for f in factors if f.name == "TVL Risk")
         chain_factor = next(f for f in factors if f.name == "Chain Concentration")
         audit_factor = next(f for f in factors if f.name == "Audit Status")
+        incident_factor = next(f for f in factors if f.name == "Incident History")
 
         tvl_analysis = f"{tvl_factor.description}. {tvl_factor.details}"
         chain_analysis = f"{chain_factor.description}. {chain_factor.details}"
         audit_analysis = f"{audit_factor.description}. {audit_factor.details}"
+        incident_analysis = f"{incident_factor.description}. {incident_factor.details}"
 
         # Generate recommendations
         recommendations: list[str] = []
@@ -307,6 +399,7 @@ class RiskCalculator:
             tvl_analysis=tvl_analysis,
             chain_analysis=chain_analysis,
             audit_analysis=audit_analysis,
+            incident_analysis=incident_analysis,
             recommendations=recommendations,
             warnings=warnings,
         )

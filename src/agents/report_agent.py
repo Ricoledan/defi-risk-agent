@@ -5,6 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from src.models.schemas import (
     AgentState,
     ComparisonReport,
+    IncidentSeverity,
     ProtocolData,
     RiskAssessment,
     RiskReport,
@@ -42,6 +43,7 @@ class ReportAgent:
             "DefiLlama API (https://defillama.com)",
             "On-chain TVL data aggregated across chains",
             "Public audit records and security disclosures",
+            "Rekt.news Incident Database (https://rekt.news/leaderboard)",
         ]
 
     def generate_executive_summary(self, protocol: ProtocolData, assessment: RiskAssessment) -> str:
@@ -79,6 +81,16 @@ class ReportAgent:
             findings.append(f"{len(protocol.audit_links)} security audit(s) on record")
         else:
             findings.append("No public audit records identified")
+
+        # Add incident findings
+        if protocol.incidents:
+            critical = sum(1 for i in protocol.incidents if i.severity == IncidentSeverity.CRITICAL)
+            if critical > 0:
+                findings.append(f"{critical} critical incident(s) in history")
+            else:
+                findings.append(f"{len(protocol.incidents)} historical incident(s)")
+        else:
+            findings.append("No documented security incidents")
 
         if findings:
             summary_parts.append("**Key Findings:**")
@@ -145,6 +157,28 @@ class ReportAgent:
         sections.append("")
         sections.append(assessment.audit_analysis)
         sections.append("")
+
+        # Incident History
+        sections.append("## Incident History")
+        if protocol.incidents:
+            sections.append(f"**Total Incidents:** {len(protocol.incidents)}")
+            sections.append("")
+            sections.append("### Documented Exploits")
+
+            for incident in protocol.incidents[:5]:  # Show 5 most recent
+                sections.append(f"\n#### {incident.title}")
+                sections.append(f"- **Date:** {incident.date.strftime('%B %d, %Y')}")
+                sections.append(f"- **Amount Lost:** ${incident.amount_lost_usd / 1e6:.2f}M")
+                sections.append(f"- **Severity:** {incident.severity.value.upper()}")
+                if incident.details_url:
+                    sections.append(f"- **Details:** {incident.details_url}")
+
+            if len(protocol.incidents) > 5:
+                sections.append(f"\n*({len(protocol.incidents) - 5} additional incidents not shown)*")
+        else:
+            sections.append("No historical incidents found.")
+
+        sections.append(f"\n{assessment.incident_analysis}\n")
 
         # Oracle Dependencies
         if protocol.oracles:

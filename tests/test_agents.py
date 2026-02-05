@@ -50,19 +50,26 @@ def sample_assessment(sample_protocol: ProtocolData):
             overall=3.5,
             level=RiskLevel.MEDIUM,
             factors=[
-                RiskFactor(name="TVL Risk", score=2.5, weight=0.35, description="Large TVL"),
+                RiskFactor(name="TVL Risk", score=2.5, weight=0.30, description="Large TVL"),
                 RiskFactor(
                     name="Chain Concentration", score=4.0, weight=0.25, description="Moderate"
                 ),
                 RiskFactor(
-                    name="Audit Status", score=2.0, weight=0.25, description="Multiple audits"
+                    name="Audit Status", score=2.0, weight=0.20, description="Multiple audits"
                 ),
-                RiskFactor(name="Oracle Risk", score=2.0, weight=0.15, description="Chainlink"),
+                RiskFactor(name="Oracle Risk", score=2.0, weight=0.10, description="Chainlink"),
+                RiskFactor(
+                    name="Incident History",
+                    score=2.0,
+                    weight=0.15,
+                    description="No documented incidents",
+                ),
             ],
         ),
         tvl_analysis="Strong TVL metrics",
         chain_analysis="Good diversification",
         audit_analysis="Well audited",
+        incident_analysis="No documented security incidents",
         recommendations=["Continue monitoring"],
         warnings=[],
     )
@@ -177,7 +184,7 @@ class TestRiskAgent:
         assert assessment.protocol_name == "Aave"
         assert assessment.score.overall >= 0
         assert assessment.score.overall <= 10
-        assert len(assessment.score.factors) == 4
+        assert len(assessment.score.factors) == 5
 
     def test_format_assessment(self, sample_assessment: RiskAssessment):
         """Test formatting assessment."""
@@ -204,6 +211,7 @@ class TestRiskAgent:
             tvl_analysis="Test",
             chain_analysis="Test",
             audit_analysis="Test",
+            incident_analysis="Test",
         )
 
         comparison = agent.compare_assessments(

@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from src.models.schemas import ChainBreakdown, ProtocolData, TVLDataPoint
+from src.tools.rekt_scraper import get_scraper
 
 BASE_URL = "https://api.llama.fi"
 TIMEOUT = 30.0
@@ -169,6 +170,13 @@ class DefiLlamaClient:
         tvl_change_7d = data.get("change_7d")
         tvl_change_30d = data.get("change_1m")
 
+        # Fetch incident data
+        scraper = get_scraper()
+        try:
+            incidents = await scraper.fetch_protocol_incidents(slug, data.get("name", slug))
+        except Exception:
+            incidents = []  # Don't fail on scraper errors
+
         return ProtocolData(
             name=data.get("name", slug),
             slug=slug,
@@ -187,6 +195,7 @@ class DefiLlamaClient:
             audits=audits,
             audit_links=audit_links,
             oracles=data.get("oracles", []) or [],
+            incidents=incidents,
             gecko_id=data.get("gecko_id"),
             twitter=data.get("twitter"),
             mcap=data.get("mcap"),

@@ -17,6 +17,15 @@ class RiskLevel(str, Enum):
     CRITICAL = "critical"
 
 
+class IncidentSeverity(str, Enum):
+    """Incident severity classification."""
+
+    CRITICAL = "critical"  # > $50M
+    HIGH = "high"  # $10M - $50M
+    MEDIUM = "medium"  # $1M - $10M
+    LOW = "low"  # < $1M
+
+
 class ChainBreakdown(BaseModel):
     """TVL breakdown by chain."""
 
@@ -30,6 +39,22 @@ class TVLDataPoint(BaseModel):
 
     date: datetime
     tvl: float = Field(ge=0)
+
+
+class ExploitIncident(BaseModel):
+    """Historical exploit/incident record."""
+
+    protocol_name: str
+    date: datetime
+    amount_lost_usd: float = Field(ge=0)
+    severity: IncidentSeverity
+    title: str
+    description: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    audit_status: str | None = None
+    fixed: bool = False
+    details_url: str | None = None
+    slug: str | None = None
 
 
 class ProtocolData(BaseModel):
@@ -52,6 +77,7 @@ class ProtocolData(BaseModel):
     audits: list[str] = Field(default_factory=list, description="List of audit firms")
     audit_links: list[str] = Field(default_factory=list)
     oracles: list[str] = Field(default_factory=list)
+    incidents: list[ExploitIncident] = Field(default_factory=list)
     gecko_id: str | None = None
     twitter: str | None = None
     mcap: float | None = None
@@ -98,6 +124,7 @@ class RiskAssessment(BaseModel):
     tvl_analysis: str
     chain_analysis: str
     audit_analysis: str
+    incident_analysis: str
     recommendations: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     assessed_at: datetime = Field(default_factory=datetime.utcnow)

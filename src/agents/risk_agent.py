@@ -17,7 +17,7 @@ Risk factors to consider:
 2. Chain concentration - diversified chain presence reduces single-point-of-failure risk
 3. Audit status - audited protocols have verified security
 4. Oracle dependencies - reliance on price feeds introduces oracle risk
-5. Historical incidents - past exploits or issues
+5. Historical incidents - past exploits increase risk
 
 When assessing risk:
 - Use data-driven analysis with specific metrics
