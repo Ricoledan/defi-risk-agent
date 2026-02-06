@@ -115,6 +115,38 @@ class TestSupervisorAgent:
         assert intent == "analyze"
         assert "someprotocol" in protocols
 
+    def test_parse_query_ronin(self):
+        """Test parsing query with ronin protocol."""
+        supervisor = SupervisorAgent()
+
+        intent, protocols = supervisor.parse_query("analyze ronin")
+
+        assert intent == "analyze"
+        assert "ronin" in protocols
+
+    def test_parse_query_cream(self):
+        """Test parsing query with cream protocol."""
+        supervisor = SupervisorAgent()
+
+        intent, protocols = supervisor.parse_query("compare aave cream compound")
+
+        assert intent == "compare"
+        assert "aave" in protocols
+        assert "cream" in protocols
+        assert "compound" in protocols
+
+    def test_parse_query_compare_ronin(self):
+        """Test comparing protocols including ronin."""
+        supervisor = SupervisorAgent()
+
+        intent, protocols = supervisor.parse_query("compare aave ronin compound")
+
+        assert intent == "compare"
+        assert "aave" in protocols
+        assert "ronin" in protocols
+        assert "compound" in protocols
+        assert len(protocols) == 3
+
     @pytest.mark.asyncio
     async def test_run_with_valid_query(self):
         """Test running supervisor with valid query."""
