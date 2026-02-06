@@ -85,6 +85,8 @@ class SupervisorAgent:
             "spark",
             "frax",
             "eigenlayer",
+            "ronin",
+            "cream",
         ]
 
         protocols = []
