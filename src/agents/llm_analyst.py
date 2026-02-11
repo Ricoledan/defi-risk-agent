@@ -61,7 +61,9 @@ Risk Assessment:
 - Chain Concentration: {_get_factor_score(assessment, "Chain Concentration")}/10
 - Audit Status: {_get_factor_score(assessment, "Audit Status")}/10
 - Oracle Risk: {_get_factor_score(assessment, "Oracle Risk")}/10
+- Incident History: {_get_factor_score(assessment, "Incident History")}/10
 
+Incidents: {len(protocol.incidents)} documented
 Warnings: {", ".join(assessment.warnings) if assessment.warnings else "None"}
 """
 
