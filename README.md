@@ -1,6 +1,6 @@
 # DeFi Risk Analysis Agent
 
-A multi-agent system built with LangGraph that analyzes DeFi protocol risk using on-chain data from DefiLlama.
+A multi-agent system built with LangGraph that analyzes DeFi protocol risk using on-chain data from DefiLlama and historical incident data from Rekt.news.
 
 ## The Problem
 
@@ -18,7 +18,9 @@ Investors, institutions, and developers need a systematic way to evaluate protoc
 This project provides an automated risk analysis pipeline that:
 
 - Aggregates protocol data from DefiLlama (TVL, chain distribution, audit status)
-- Applies a quantitative risk scoring methodology across multiple dimensions
+- Integrates historical exploit/incident data from Rekt.news
+- Applies a quantitative risk scoring methodology across five dimensions
+- Optionally enhances reports with LLM-powered insights (Ollama, OpenAI, or Anthropic)
 - Generates professional reports with clear explanations and data provenance
 - Exposes results via CLI, REST API, and Python library
 
@@ -32,25 +34,29 @@ The multi-agent architecture allows each component to specialize in its domain w
 flowchart TD
     A[User Query] --> B[Supervisor Agent]
     B --> |Parse & Route| C[Data Agent]
-    C --> |Fetch from DefiLlama| D[Risk Agent]
+    C --> |Fetch from DefiLlama & Rekt.news| D[Risk Agent]
     D --> |Calculate Scores| E[Report Agent]
     E --> F[Risk Report]
+    E -.-> |Optional| G[LLM Analyst]
+    G --> F
 
-    B -.-> |Error| G[End with Error]
-    C -.-> |Protocol Not Found| G
+    B -.-> |Error| H[End with Error]
+    C -.-> |Protocol Not Found| H
 
     subgraph "Data Agent"
         C1[TVL & Trends]
         C2[Chain Breakdown]
         C3[Audit Links]
         C4[Oracle Info]
+        C5[Incident History]
     end
 
     subgraph "Risk Agent"
-        D1[TVL Risk: 35%]
+        D1[TVL Risk: 30%]
         D2[Chain Risk: 25%]
-        D3[Audit Risk: 25%]
-        D4[Oracle Risk: 15%]
+        D3[Audit Risk: 20%]
+        D4[Oracle Risk: 10%]
+        D5[Incident Risk: 15%]
     end
 ```
 
@@ -59,9 +65,10 @@ flowchart TD
 | Agent | Role | Input | Output |
 |-------|------|-------|--------|
 | **Supervisor** | Query parsing, workflow routing | User query string | Protocol names, workflow intent |
-| **Data Agent** | External data fetching | Protocol names | `ProtocolData` objects |
+| **Data Agent** | External data fetching | Protocol names | `ProtocolData` objects (DefiLlama + Rekt.news) |
 | **Risk Agent** | Risk score calculation | Protocol data | `RiskAssessment` objects |
 | **Report Agent** | Report generation | Data + Assessments | Formatted `RiskReport` |
+| **LLM Analyst** | AI-powered insights (optional) | Protocol data + Assessment | Natural language analysis |
 
 ### LangGraph Workflow
 
@@ -113,6 +120,7 @@ This design enables:
 flowchart LR
     subgraph External
         API[(DefiLlama API)]
+        REKT[(Rekt.news)]
     end
 
     subgraph "State Object"
@@ -124,6 +132,7 @@ flowchart LR
     end
 
     API --> |HTTP GET| S3
+    REKT --> |Scrape incidents| S3
     S1 --> |Supervisor parses| S2
     S3 --> |Risk Agent analyzes| S4
     S4 --> |Report Agent formats| S5
@@ -133,26 +142,28 @@ flowchart LR
 
 ### Scoring Model
 
-Risk is scored on a 0-10 scale where **lower scores indicate lower risk**. The overall score is a weighted average of four factors:
+Risk is scored on a 0-10 scale where **lower scores indicate lower risk**. The overall score is a weighted average of five factors:
 
 ```mermaid
 pie title Risk Factor Weights
-    "TVL Risk" : 35
+    "TVL Risk" : 30
     "Chain Concentration" : 25
-    "Audit Status" : 25
-    "Oracle Risk" : 15
+    "Audit Status" : 20
+    "Incident History" : 15
+    "Oracle Risk" : 10
 ```
 
 | Factor | Weight | What It Measures |
 |--------|--------|------------------|
-| **TVL Risk** | 35% | Protocol size, volatility, and 30-day trend |
+| **TVL Risk** | 30% | Protocol size, volatility, and 30-day trend |
 | **Chain Concentration** | 25% | Diversification across blockchains |
-| **Audit Status** | 25% | Presence and number of security audits |
-| **Oracle Risk** | 15% | Dependency on price oracles |
+| **Audit Status** | 20% | Presence and number of security audits |
+| **Incident History** | 15% | Historical exploits, severity, recency, and resolution |
+| **Oracle Risk** | 10% | Dependency on price oracles |
 
 ### Factor Details
 
-#### TVL Risk (35%)
+#### TVL Risk (30%)
 
 Evaluates Total Value Locked as a proxy for protocol maturity and market confidence.
 
@@ -173,7 +184,7 @@ Measures diversification using the Herfindahl-Hirschman Index (HHI). Single-chai
 | Top chain > 80% TVL | High |
 | 5+ chains with meaningful TVL | Bonus reduction |
 
-#### Audit Status (25%)
+#### Audit Status (20%)
 
 Checks for security audit records in DefiLlama metadata.
 
@@ -183,7 +194,19 @@ Checks for security audit records in DefiLlama metadata.
 | 1-2 audits | 4.0 (Medium) |
 | No audits found | 8.0 (High) |
 
-#### Oracle Risk (15%)
+#### Incident History (15%)
+
+Evaluates historical security incidents from the Rekt.news leaderboard. The score is a weighted combination of three sub-factors:
+
+| Sub-factor | Weight | What It Measures |
+|------------|--------|------------------|
+| Recency | 50% | How recently incidents occurred (recent = higher risk) |
+| Severity | 40% | Dollar amount lost (>$50M critical, >$10M high, >$1M medium) |
+| Resolution | 10% | Whether incidents have been fixed |
+
+Protocols with no documented incidents receive a baseline score of 2.0/10 (no evidence of problems, but not guaranteed safe).
+
+#### Oracle Risk (10%)
 
 Evaluates dependency on external price feeds.
 
@@ -361,17 +384,18 @@ $ defi-risk analyze aave
 
 # DeFi Risk Report: Aave V3
 
-Generated: 2024-01-15 14:30 UTC
+Generated: 2025-02-10 14:30 UTC
 
 ## Executive Summary
 
 Aave V3 is a Lending protocol with $28.03B in Total Value Locked across 18 blockchains.
 
-**Risk Assessment:** MEDIUM (Score: 4.1/10)
+**Risk Assessment:** MEDIUM (Score: 3.9/10)
 
 **Key Findings:**
 - Well-diversified across 18 chains
 - 1 security audit(s) on record
+- No documented security incidents
 
 ## Risk Score Breakdown
 
@@ -388,9 +412,12 @@ Audited (1 audit). Has security audit(s) on record.
 ### Oracle Risk: 4.0/10
 No oracle dependency detected in metadata.
 
+### Incident History: 2.0/10
+No documented security incidents. Clean security track record.
+
 ---
 
-_Data source: DefiLlama API (https://defillama.com)_
+_Data sources: DefiLlama API (https://defillama.com), Rekt.news (https://rekt.news/leaderboard)_
 ```
 
 ## Project Structure
@@ -403,6 +430,7 @@ graph TD
             A2[data_agent.py]
             A3[risk_agent.py]
             A4[report_agent.py]
+            A5[llm_analyst.py]
         end
 
         subgraph graph/
@@ -412,6 +440,11 @@ graph TD
         subgraph tools/
             T1[defillama.py]
             T2[risk_metrics.py]
+            T3[rekt_scraper.py]
+        end
+
+        subgraph llm/
+            L1[provider.py]
         end
 
         subgraph models/
@@ -428,8 +461,9 @@ graph TD
     end
 
     G1 --> A1 & A2 & A3 & A4
-    A2 --> T1
+    A2 --> T1 & T3
     A3 --> T2
+    A5 --> L1
     A1 & A2 & A3 & A4 --> M1
     API1 --> G1
     CLI1 --> G1
@@ -440,21 +474,27 @@ defi-risk-agent/
 ├── src/
 │   ├── agents/
 │   │   ├── supervisor.py      # Query parsing, workflow routing
-│   │   ├── data_agent.py      # DefiLlama data fetching
+│   │   ├── data_agent.py      # DefiLlama + Rekt.news data fetching
 │   │   ├── risk_agent.py      # Risk score calculation
-│   │   └── report_agent.py    # Report generation
+│   │   ├── report_agent.py    # Report generation
+│   │   └── llm_analyst.py     # LLM-powered analysis (optional)
 │   ├── graph/
 │   │   └── workflow.py        # LangGraph StateGraph definition
 │   ├── tools/
 │   │   ├── defillama.py       # DefiLlama API client with caching
-│   │   └── risk_metrics.py    # Risk calculation algorithms
+│   │   ├── risk_metrics.py    # Risk calculation algorithms (5 factors)
+│   │   └── rekt_scraper.py    # Rekt.news incident scraper with caching
+│   ├── llm/
+│   │   └── provider.py        # LLM provider config (Ollama/OpenAI/Anthropic)
 │   ├── models/
 │   │   └── schemas.py         # Pydantic models for all data types
 │   ├── api/
 │   │   └── main.py            # FastAPI application
 │   └── cli/
 │       └── main.py            # Typer CLI application
-├── tests/                     # 48 unit/integration tests
+├── tests/                     # 79 unit/integration tests
+├── scripts/
+│   └── setup-ollama.sh        # Ollama setup helper
 ├── flake.nix                  # Nix flake for reproducible dev env
 ├── pyproject.toml             # Python package configuration
 └── README.md
@@ -468,15 +508,18 @@ defi-risk-agent/
 | LLM (Optional) | Ollama / OpenAI / Anthropic | AI-powered insights |
 | Data Validation | Pydantic | Type-safe data models |
 | HTTP Client | httpx | Async API requests |
+| Web Scraping | BeautifulSoup4 | Rekt.news incident parsing |
 | REST API | FastAPI | Web API endpoints |
 | CLI | Typer + Rich | Command-line interface |
-| Testing | pytest + pytest-asyncio | Async test support |
+| Testing | pytest + pytest-asyncio + respx | Async test support with HTTP mocking |
 | Linting | Ruff | Fast Python linter |
 | Dev Environment | Nix | Reproducible builds |
 
-## Data Source
+## Data Sources
 
-All protocol data is fetched from the [DefiLlama API](https://defillama.com/docs/api):
+### DefiLlama API
+
+All protocol data is fetched from the [DefiLlama API](https://defillama.com/docs/api) with a 5-minute cache TTL:
 
 | Endpoint | Data Retrieved |
 |----------|----------------|
@@ -485,29 +528,35 @@ All protocol data is fetched from the [DefiLlama API](https://defillama.com/docs
 
 DefiLlama aggregates on-chain data across 200+ blockchains and 3000+ protocols. Data is typically updated every few minutes.
 
+### Rekt.news
+
+Historical exploit and incident data is scraped from the [Rekt.news leaderboard](https://rekt.news/leaderboard/) with a 24-hour cache TTL. The scraper uses multiple parsing strategies (embedded JSON, HTML table, generic fallback) to handle potential structure changes. Incidents are matched to protocols using multi-strategy name normalization (exact slug, base name extraction, partial string matching).
+
 ## Limitations
 
 This tool has significant limitations that users should understand:
 
 ### Data Limitations
 
-- **Single Data Source** - Relies entirely on DefiLlama. If their data is incomplete, stale, or incorrect, our analysis will be too.
+- **Limited Data Sources** - Relies on DefiLlama for protocol metrics and Rekt.news for incident history. If either source is incomplete, stale, or incorrect, our analysis will be too.
 - **Audit Data Quality** - DefiLlama's audit links are community-maintained and may be incomplete. A protocol showing "no audits" may actually have audits that aren't indexed.
-- **No Historical Incidents** - The system does not track past exploits, hacks, or security incidents. A protocol with a history of exploits will not be penalized.
+- **Incident Matching** - Protocol names vary across data sources (e.g., "cream-finance" vs "cream-rekt-2"). The multi-strategy name matching is not 100% accurate and may miss or misattribute incidents.
 - **No Smart Contract Analysis** - We don't analyze actual smart contract code, only metadata about the protocol.
 
 ### Methodology Limitations
 
-- **Simplified Risk Model** - Real DeFi risk assessment requires analyzing tokenomics, governance, team, code quality, economic attacks, and more. Our four-factor model is a simplification.
-- **Arbitrary Weights** - The 35/25/25/15 weighting is a reasonable starting point but not empirically validated.
+- **Simplified Risk Model** - Real DeFi risk assessment requires analyzing tokenomics, governance, team, code quality, economic attacks, and more. Our five-factor model is a simplification.
+- **Arbitrary Weights** - The 30/25/20/15/10 weighting is a reasonable starting point but not empirically validated.
 - **TVL as Proxy** - High TVL doesn't guarantee safety (see Terra/Luna). Low TVL doesn't mean a protocol is risky.
 - **Chain Concentration** - Multi-chain isn't always better. It can mean more attack surface and bridge risks.
+- **Incident "Fixed" Status** - Whether an incident has been resolved is not independently verified.
 
 ### Technical Limitations
 
-- **No Real-time Data** - Results are cached for 5 minutes. Not suitable for time-sensitive decisions.
-- **Optional LLM Integration** - LLM-powered insights require a locally running Ollama server. The base analysis is purely algorithmic.
-- **Limited Protocol Recognition** - The supervisor uses keyword matching to find protocols. Unusual names may not be recognized.
+- **No Real-time Data** - Protocol data is cached for 5 minutes; incident data for 24 hours. Not suitable for time-sensitive decisions.
+- **Rekt.news Scraping** - Web scraping is inherently fragile. HTML structure changes on Rekt.news may temporarily break incident data fetching (the system gracefully degrades to empty results).
+- **Optional LLM Integration** - LLM-powered insights require Ollama running locally, or an OpenAI/Anthropic API key. The base analysis is purely algorithmic.
+- **Limited Protocol Recognition** - The supervisor uses a hardcoded keyword list to find protocols. Unusual or new protocol names may not be recognized.
 
 ### Not Financial Advice
 
@@ -541,13 +590,14 @@ ruff format src/ tests/
 
 Potential enhancements (not currently implemented):
 
-- [ ] Integrate historical exploit/incident data
-- [x] ~~Add LLM-powered analysis for qualitative factors~~ (Added via Ollama integration)
+- [x] ~~Integrate historical exploit/incident data~~ (Added via Rekt.news scraper)
+- [x] ~~Add LLM-powered analysis for qualitative factors~~ (Added via Ollama/OpenAI/Anthropic integration)
 - [ ] Support more data sources (DeFi Safety, Exponential, etc.)
 - [ ] Track risk score changes over time
 - [ ] Add governance and tokenomics analysis
 - [ ] WebSocket support for real-time updates
 - [ ] User-configurable risk weights
+- [ ] Dynamic protocol list (fetch from DefiLlama instead of hardcoded)
 
 ## License
 
